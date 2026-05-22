@@ -135,6 +135,12 @@ def main():
         help="path to the blend output summary csv file from export_blend_output.py "
     )
 
+    parser.add_argument(
+        "--output_file",
+        default="predict/output/2026/kiremt_onset_categories.csv",
+        help="path to the output message conversion file" 
+    )
+
     args = parser.parse_args()
 
     # ── configuration ──
@@ -143,7 +149,7 @@ def main():
 
     # ── load data ──
     if args.input_file:
-        blend = pd_read_csv(args.input_file)
+        blend = pd.read_csv(args.input_file)
     else:
         blend = pd.read_csv("Monsoon_Data/Processed_Data/2026/blend_output_summary_20260518.csv")
     clim  = pd.read_csv("Monsoon_Data/Processed_Data/Models/mr_onset_idx_median_by_id.csv")
@@ -253,7 +259,8 @@ def main():
 
     # ── also save to CSV for downstream use ──
     out = pd.DataFrame(messages).drop(columns=["message"])
-    out.to_csv("predict/output/2026/kiremt_onset_categories.csv", index=False)
+    #out.to_csv("predict/output/2026/kiremt_onset_categories.csv", index=False)
+    out.to_csv(args.output_file, index=False)
     print(f"\n✓ Category summary saved to kiremt_onset_categories.csv")
     print(f"  Total districts: {len(messages)}")
     for cat, label in [(1, "Onset within weeks (High)"),

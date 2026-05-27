@@ -119,37 +119,16 @@ def best_week_info(category, w1, w2, w3, w4, thresholds, issue_date_str):
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
-def main():
-    # ── CLI arguments ──
-    parser = argparse.ArgumentParser(description="Generate Kiremt onset forecast messages.")
-    parser.add_argument(
-        "--district", "-d",
-        type=str,
-        default=None,
-        help="Name of a specific adm3 district to process (case-insensitive). "
-             "If omitted, all districts are processed."
-    )
-    parser.add_argument(
-        "--input_file",
-        default=None,
-        help="path to the blend output summary csv file from export_blend_output.py "
-    )
+def generate_messages(input_file, output_file, district=None):
 
-    parser.add_argument(
-        "--output_file",
-        default="predict/output/2026/kiremt_onset_categories.csv",
-        help="path to the output message conversion file" 
-    )
-
-    args = parser.parse_args()
 
     # ── configuration ──
     THRESHOLDS = [0.70, 0.65, 0.60, 0.55]   # [t1, t2, t3, t4]
     SEASON_NAME = "Kiremt Geba"
 
     # ── load data ──
-    if args.input_file:
-        blend = pd.read_csv(args.input_file)
+    if input_file:
+        blend = pd.read_csv(input_file)
     else:
         blend = pd.read_csv("Monsoon_Data/Processed_Data/2026/blend_output_summary_20260518.csv")
     clim  = pd.read_csv("Monsoon_Data/Processed_Data/Models/mr_onset_idx_median_by_id.csv")
@@ -169,11 +148,11 @@ def main():
     )
 
     # ── optional district filter ──
-    if args.district:
-        mask = df["id"].str.lower() == args.district.lower()
+    if district:
+        mask = df["id"].str.lower() == district.lower()
         df = df[mask]
         if df.empty:
-            print(f"District '{args.district}' not found. Available names (sample):")
+            print(f"District '{district}' not found. Available names (sample):")
             print("\n".join(f"  {n}" for n in blend["id"].sort_values().head(20)))
             return
 
@@ -251,7 +230,7 @@ def main():
         })
 
     # ── print all messages ──
-    if args.district:
+    if district:
         for m in messages:
             print("=" * 70)
             print(m["message"])
@@ -260,15 +239,39 @@ def main():
     # ── also save to CSV for downstream use ──
     out = pd.DataFrame(messages).drop(columns=["message"])
     #out.to_csv("predict/output/2026/kiremt_onset_categories.csv", index=False)
-    out.to_csv(args.output_file, index=False)
-    print(f"\n✓ Category summary saved to kiremt_onset_categories.csv")
+    out.to_csv(output_file, index=False)
+    print(f"\n✓ Category summary saved to {output_file}")
     print(f"  Total districts: {len(messages)}")
     for cat, label in [(1, "Onset within weeks (High)"),
                        (2, "Onset after weeks (Moderate)"),
                        (3, "Uncertain")]:
         n = sum(1 for m in messages if m["category"] == cat)
-        print(f"  Category {cat} – {label}: {n}")
+        print(f"  Category {cat} - {label}: {n}")
 
+
+def main():
+    # ── CLI arguments ──
+    parser = argparse.ArgumentParser(description="Generate Kiremt onset forecast messages.")
+    parser.add_argument(
+        "--district", "-d",
+        type=str,
+        default=None,
+        help="Name of a specific adm3 district to process (case-insensitive). "
+             "If omitted, all districts are processed."
+    )
+    parser.add_argument(
+        "--input_file",
+        default=None,
+        help="path to the blend output summary csv file from export_blend_output.py "
+    )
+
+    parser.add_argument(
+        "--output_file",
+        default="predict/output/2026/kiremt_onset_categories.csv",
+        help="path to the output message conversion file" 
+    )
+
+    args = parser.parse_args()
 
 if __name__ == "__main__":
     main()

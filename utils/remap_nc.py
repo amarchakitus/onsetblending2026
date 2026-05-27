@@ -6,7 +6,7 @@ import pandas as pd
 import xarray as xr
 
 
-def batch_aggregate_to_adm3_matrix(input_dir, mapping_csv_path, input_file=None):
+def batch_aggregate_to_adm3_matrix(model_name, input_file, out_dir, mapping_csv_path,):
     # 1. Load mapping
     mapping = pd.read_csv(mapping_csv_path)
     mapping = mapping.rename(columns={'latitude': 'lat', 'longitude': 'lon'})
@@ -20,11 +20,9 @@ def batch_aggregate_to_adm3_matrix(input_dir, mapping_csv_path, input_file=None)
     # over pixel AND adm3_name together, giving a scalar that made all results NaN).
     weight_sum_per_adm3 = weights_matrix.sum(dim='pixel')  # shape: (adm3_name,)
 
-    # 3. Process Files
-    if input_file is not None:
-        nc_files = [input_file]
-    else:
-        nc_files = [f for f in glob.glob(os.path.join(input_dir, "*.nc")) if not f.endswith("_adm3.nc")]
+
+    nc_files = [input_file]
+
 
     if not nc_files:
         print("No new .nc files found to process.")
@@ -93,13 +91,14 @@ def batch_aggregate_to_adm3_matrix(input_dir, mapping_csv_path, input_file=None)
             # 4. Reconstruct Dataset and save
             adm3_ds = xr.Dataset(processed_vars)
 
-            base_name = os.path.splitext(file_path)[0]
-            output_path = f"{base_name}_adm3.nc"
+            base_name = input_file.stem
+            output_path = out_dir / f"{base_name}_{model_name}_adm3.nc"
             adm3_ds.to_netcdf(output_path)
-            print(f"Saved: {os.path.basename(output_path)}")
+            print(f"Saved: {output_path}")
+    return output_path
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         description="Batch aggregate gridded .nc files to ADM3 districts using a pixel-to-district weight mapping."
     )
@@ -122,3 +121,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     batch_aggregate_to_adm3_matrix(args.input_dir, args.weight_file, input_file=args.input_file)
+
+if __name__ == "__main__":
+    main()

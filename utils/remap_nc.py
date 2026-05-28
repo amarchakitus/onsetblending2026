@@ -20,6 +20,7 @@ def batch_aggregate_to_adm3_matrix(model_name, input_file, out_dir, mapping_csv_
     # over pixel AND adm3_name together, giving a scalar that made all results NaN).
     weight_sum_per_adm3 = weights_matrix.sum(dim='pixel')  # shape: (adm3_name,)
 
+    print("Using the map file", mapping_csv_path)
 
     nc_files = [input_file]
 

@@ -352,7 +352,7 @@ def main():
 
     # ── Expected output paths ─────────────────────────────────────────────
     aifs_pkl     = os.path.join(work_dir, f"aifs_{year}_wide.pkl")
-    aifs_ens_pkl = os.path.join(work_dir, f"aifs_ens_{year}_wide.pkl")
+    aifs_ens_pkl = os.path.join(work_dir, f"{args.aifs_ens_spec}_wide.pkl")
     connect_pkl  = args.blend_input
     preds_pkl    = os.path.join(work_dir, f"{args.blend_model}_global_year{year}_preds.pkl")
     export_csv   = os.path.join(work_dir, f"blend_output_summary_{date_compact}.csv")

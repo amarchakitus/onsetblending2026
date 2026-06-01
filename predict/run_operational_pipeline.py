@@ -366,8 +366,10 @@ def main():
     # ---------------------------------------------------------------------
     # patch combine spec
     # Read clim spec for climatology output filenames (always, not just when gt_path set)
-    aifs_pkl     = os.path.join(work_dir, f"aifs_{year}_wide.pkl")
-    aifs_ens_pkl = os.path.join(work_dir, f"aifs_ens_{year}_wide.pkl")
+    #aifs_pkl     = os.path.join(work_dir, f"aifs_{year}_wide.pkl")
+    #aifs_ens_pkl = os.path.join(work_dir, f"aifs_ens_{year}_wide.pkl")
+    aifs_pkl     = os.path.join(work_dir, f"{args.aifs_spec}_wide.pkl")
+    aifs_ens_pkl = os.path.join(work_dir, f"{args.aifs_ens_spec}_wide.pkl")
 
     clim_spec_path = os.path.join("specs", "raw_data", f"{args.clim_spec}.yml")
     with open(clim_spec_path) as f:

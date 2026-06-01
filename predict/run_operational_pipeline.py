@@ -395,7 +395,7 @@ def main():
 
     cs["output"]["basename"] = args.combine_spec   # pins output filename to original name
     if args.gt_path:
-        cs["ground_truth_wide_rds"] = args.gt_path
+        cs["input"]["ground_truth_wide_rds"] = args.gt_path
     combine_spec_op      = f"{args.combine_spec}_op"
     combine_spec_op_path = os.path.join("specs", "combine", f"{combine_spec_op}.yml")
     with open(combine_spec_op_path, "w") as f:

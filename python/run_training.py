@@ -347,7 +347,7 @@ def main():
         cs["forecasts"][args.model_ens] = cs["forecasts"].pop("aifs_ens")
 
     if args.gt_path:
-        cs["ground_truth_wide_rds"] = args.gt_path
+        cs["input"]["ground_truth_wide_rds"] = args.gt_path
 
     combine_spec_op      = f"{args.combine_spec}_op"
     combine_spec_op_path = os.path.join("specs", "combine", f"{combine_spec_op}.yml")

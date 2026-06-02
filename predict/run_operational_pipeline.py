@@ -384,14 +384,16 @@ def main():
     cs["output"]["out_dir"]                           = work_dir
     cs["input"]["climatologies"]["clim"]["rds"]       = clim_rds
     cs["input"]["climatologies"]["clim_unc"]["rds"]   = clim_unc_rds
-    cs["forecasts"]["aifs_ens"]["sources"][0]["file"] = aifs_ens_pkl
-    cs["forecasts"]["aifs"]["sources"][0]["file"]     = aifs_pkl
+    ensemble_key = args.model_ens if args.model_ens in cs["forecasts"] else "aifs_ens"
+    single_key = args.model_single if args.model_single in cs["forecasts"] else "aifs"
+    cs["forecasts"][ensemble_key]["sources"][0]["file"] = aifs_ens_pkl
+    cs["forecasts"][single_key]["sources"][0]["file"]   = aifs_pkl
 
     # rename forecast keys if model names differ from defaults
-    if args.model_single != "aifs":
-        cs["forecasts"][args.model_single] = cs["forecasts"].pop("aifs")
-    if args.model_ens != "aifs_ens":
-        cs["forecasts"][args.model_ens] = cs["forecasts"].pop("aifs_ens")
+    if single_key != args.model_single:
+        cs["forecasts"][args.model_single] = cs["forecasts"].pop(single_key)
+    if ensemble_key != args.model_ens:
+        cs["forecasts"][args.model_ens] = cs["forecasts"].pop(ensemble_key)
 
     cs["output"]["basename"] = args.combine_spec   # pins output filename to original name
     if args.gt_path:

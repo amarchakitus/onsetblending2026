@@ -167,6 +167,9 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
         resolution=resolution, category=category, name=name
     )
 
+#    print(country_gdf.geom_type.unique())
+#    print(country_gdf.head())
+
     if all_cells_file is None:
         all_cells_file = base / "data" / "support" / "all_cells.csv"
     all_cells = pd.read_csv(all_cells_file)
@@ -212,6 +215,9 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
     preds_df["Climatology_p_later"] = (
         1 - preds_df[[f"Climatology_p_{i}" for i in range(1, 5)]].sum(axis=1)
     )
+
+#    print(preds_df["Forecast_p_later"].isna().sum())
+#    print(preds_df["later"].isna().sum() if "later" in preds_df.columns else "no later column")
 
     # Map extent
     minx, miny, maxx, maxy = country_gdf.total_bounds
@@ -292,10 +298,13 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
 
     #idx = np.round(np.linspace(0, len(list(reversed(colors)))-1, 4)).astype(int)
     #idx = [0, 1, 3, 5]
-    idx = [0, 2, 4, 5]
+    #idx = [0, 2, 4, 5]
+    idx = [0, 2, 4, 5, 5]
     selected = [list(reversed(colors))[i] for i in idx]
     period_colors = {k: c for k, c in zip(period_order, selected)}
     period_colors['none'] = '#d3d3d3'
+    #period_colors['later'] = '#c6dbef'  # one step darker than #e3eef9
+    #period_colors['later'] = 'red'
 
     #prob_bins = [0, 0.1, 0.2, 0.3, 0.4, 1.0]
     #prob_bins = [0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0]
@@ -329,6 +338,10 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
         merged = woredas.merge(grp[["id"] + [f"Forecast_p_{i}" for i in range(1, 5)] +
                                     [f"Climatology_p_{i}" for i in range(1, 5)]],
                                left_on="adm3_name", right_on="id", how="left")
+
+        # Keep the non-NaN row if duplicates exist
+        #merged = (merged.sort_values("Forecast_p_later", na_position="last")
+        #.drop_duplicates(subset="adm3_name", keep="first") )
 
         fig, axes = plt.subplots(1, 4, figsize=(18, 5), sharex=True, sharey=True,
                                  gridspec_kw={'wspace': 0.1})
@@ -435,14 +448,40 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
         def _row_max_period(row):
             vf = [row.get(f"Forecast_p_{i}", np.nan) for i in range(1, 5)] + \
                  [row.get("Forecast_p_later", np.nan)]
+            #print(f"vf={vf}, any_nan={any(pd.isna(vf))}")  # DEBUG
             if any(pd.isna(vf)):
                 return 'none'
             return max_period(vf)
 
         merged["period"] = merged.apply(_row_max_period, axis=1)
 
+        # Deduplicate — keep valid period over 'none' when same woreda appears twice
+        merged["_is_none"] = (merged["period"] == "none").astype(int)
+        merged = ((merged.sort_values("_is_none")
+                .drop_duplicates(subset="adm3_name", keep="first")
+                .drop(columns="_is_none")))
+
+        # DEBUG — add here:
+        #print("woredas total:", len(woredas))
+        #print("merged total after dedup:", len(merged))
+        #print("period value counts:", merged["period"].value_counts())
+        #all_woredas = set(woredas["adm3_name"])
+        #merged_woredas = set(merged["adm3_name"])
+        #print("woredas not in merged:", all_woredas - merged_woredas)
+
+        #print("period_colors:", period_colors)
+        #print("unique periods on map:", merged["period"].unique())
+        #print("later subset size:", len(merged[merged["period"] == "later"]))
+        #print("later color:", period_colors['later'])
+        #for period_key, color in period_colors.items():
+        #    subset = merged[merged["period"] == period_key]
+        #    print(f"  plotting {period_key}: {len(subset)} rows, color={color}")
+        #import sys
+        #sys.exit()
+
         labels = _period_labels(pd.Timestamp(t))
-        week_labels = ["week1", "week2", "week3", "week4"]
+        #week_labels = ["week1", "week2", "week3", "week4"]
+        week_labels = ["week1", "week2", "week3", "week4+"]
         #handles = [
         #    Patch(facecolor=period_colors[k], edgecolor='none', label=labels[k])
         #    for k in period_order
@@ -455,8 +494,12 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
                              label='No forecast/onset'))
 
         fig, ax = plt.subplots(figsize=(6, 6))
+        #ax.set_facecolor('red')  # DEBUG
         country_gdf.boundary.plot(ax=ax, linewidth=0.5, edgecolor='black')
-        for period_key, color in period_colors.items():
+#        for period_key, color in period_colors.items():
+        plot_order = ['none'] + [k for k in period_colors if k != 'none']
+        for period_key in plot_order:
+            color = period_colors[period_key]
             subset = merged[merged["period"] == period_key]
             if not subset.empty:
                 #subset.plot(ax=ax, color=color, edgecolor='none', zorder=1)
@@ -468,6 +511,14 @@ def make_maps(summary, output_path, mok=False, all_cells_file=None,
 
                 subset.plot(ax=ax, color=color, edgecolor=contrast_edge, linewidth=0.01, zorder=1)
                 #subset.plot(ax=ax, color=color, edgecolor='none', linewidth=0, antialiased=False, zorder=1)
+
+#                if period_key == 'later':
+#                    print(f"later bounds: {subset.total_bounds}")
+#                    print(f"ax xlim: {ax.get_xlim()}, ylim: {ax.get_ylim()}")
+
+#                print("later index:", subset.index.tolist()[:5])
+#                print("none index:", merged[merged["period"]=="none"].index.tolist())
+#                print("any overlap:", set(subset.index) & set(merged[merged["period"]=="none"].index))
 
         ax.legend(handles=handles, title='Period with Max Probability of Onset',
                   loc='lower left', ncol=2, fontsize=9, title_fontsize=7,

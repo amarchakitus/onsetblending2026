@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
 """
-Plot adm2 and adm3 boundaries on a map and highlight a specified woreda.
+Plot adm2 and adm3 boundaries on a map and highlight one or more woredas.
 
 Usage:
+  # Single woreda (no quotes needed unless the name has spaces)
   python plot_woreda_location.py \
-      --woreda "Adaba" \
+      --woreda Adaba \
+      --shapefile_dir /path/to/shapefiles \
+      --output_dir /path/to/output
+
+  # Multiple woredas
+  python plot_woreda_location.py \
+      --woreda Adaba Goro Sinana \
+      --shapefile_dir /path/to/shapefiles \
+      --output_dir /path/to/output
+
+  # Name with spaces — quote only that token
+  python plot_woreda_location.py \
+      --woreda Adaba "Kore Woreda" Sinana \
       --shapefile_dir /path/to/shapefiles \
       --output_dir /path/to/output
 
   # Override individual shapefiles if needed:
   python plot_woreda_location.py \
-      --woreda "Adaba" \
+      --woreda Adaba \
       --shapefile_dir /path/to/shapefiles \
       --output_dir /path/to/output \
       --adm3_shp /other/path/manual_zones_woredas.shp \
@@ -72,7 +85,7 @@ def load_adm2(adm3_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 # Main plot
 # ---------------------------------------------------------------------------
 
-def plot_woreda(woreda_name: str,
+def plot_woreda(woreda_names: list[str],          # ← was: woreda_name: str
                 shapefile_dir: Path,
                 output_dir: Path,
                 adm3_shp: Path | None,
@@ -83,17 +96,18 @@ def plot_woreda(woreda_name: str,
     adm2_gdf    = load_adm2(adm3_gdf)
     country_gdf = load_country_boundary(shapefile_dir, country_shp)
 
-    # Validate requested woreda
-    if woreda_name not in adm3_gdf["adm3_name"].values:
-        close = [n for n in adm3_gdf["adm3_name"] if woreda_name.lower() in n.lower()]
-        hint = f"  Did you mean: {close[:5]}" if close else ""
-        sys.exit(
-            f"ERROR: '{woreda_name}' not found in adm3_name column.{hint}\n"
-            f"  Total woredas: {len(adm3_gdf)}"
-        )
+    # Validate every requested woreda                ← was: single check
+    for wn in woreda_names:
+        if wn not in adm3_gdf["adm3_name"].values:
+            close = [n for n in adm3_gdf["adm3_name"] if wn.lower() in n.lower()]
+            hint = f"  Did you mean: {close[:5]}" if close else ""
+            sys.exit(
+                f"ERROR: '{wn}' not found in adm3_name column.{hint}\n"
+                f"  Total woredas: {len(adm3_gdf)}"
+            )
 
-    target = adm3_gdf[adm3_gdf["adm3_name"] == woreda_name]
-    other  = adm3_gdf[adm3_gdf["adm3_name"] != woreda_name]
+    target = adm3_gdf[ adm3_gdf["adm3_name"].isin(woreda_names)]   # ← was: == woreda_name
+    other  = adm3_gdf[~adm3_gdf["adm3_name"].isin(woreda_names)]   # ← was: != woreda_name
 
     # ── Map extent (country bounds if available, else adm3 total bounds) ─
     if country_gdf is not None:
@@ -128,7 +142,7 @@ def plot_woreda(woreda_name: str,
     other.plot(ax=ax, color=color_none,
                edgecolor=adm3_edge_color, linewidth=adm3_edge_lw, zorder=1)
 
-    # 2. Highlighted woreda
+    # 2. Highlighted woredas
     target.plot(ax=ax, color=color_target,
                 edgecolor='white', linewidth=0.5, zorder=2)
 
@@ -149,13 +163,14 @@ def plot_woreda(woreda_name: str,
                 color=adm2_label_color, ha='center', va='center',
                 zorder=4, clip_on=True)
 
-    # 6. Woreda name label on the highlighted polygon
-    tc = target.geometry.iloc[0].centroid
-    ax.text(tc.x, tc.y, woreda_name,
-            fontsize=6, fontweight='bold', color='white',
-            ha='center', va='center', zorder=6, clip_on=True,
-            bbox=dict(boxstyle='round,pad=0.2', facecolor=color_target,
-                      edgecolor='white', linewidth=0.5, alpha=0.85))
+    # 6. Woreda name label on each highlighted polygon   ← was: single label
+    for _, trow in target.iterrows():
+        tc = trow.geometry.centroid
+        ax.text(tc.x, tc.y, trow["adm3_name"],
+                fontsize=6, fontweight='bold', color='white',
+                ha='center', va='center', zorder=6, clip_on=True,
+                bbox=dict(boxstyle='round,pad=0.2', facecolor=color_target,
+                          edgecolor='white', linewidth=0.5, alpha=0.85))
 
     # ── Axes styling  (mirrors maps_new_zone.py) ──────────────────────────
     ax.set_xlim(minx, maxx)
@@ -163,11 +178,18 @@ def plot_woreda(woreda_name: str,
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
     ax.grid(True, linestyle='--', linewidth=0.4, color='gray', alpha=0.5)
-    ax.set_title(f"Woreda: {woreda_name}", fontsize=12, fontweight='bold', pad=8)
+
+    # Title — singular vs plural                        ← was: f"Woreda: {woreda_name}"
+    title_str = ", ".join(woreda_names)
+    ax.set_title(
+        f"Woreda{'s' if len(woreda_names) > 1 else ''}: {title_str}",
+        fontsize=12, fontweight='bold', pad=8
+    )
 
     # ── Legend ────────────────────────────────────────────────────────────
+    label_str = ", ".join(woreda_names)                # ← was: woreda_name
     handles = [
-        Patch(facecolor=color_target,  edgecolor='white', label=woreda_name),
+        Patch(facecolor=color_target,  edgecolor='white', label=label_str),
         Patch(facecolor=color_none,    edgecolor='white', label='Other woredas (adm3)'),
         Patch(facecolor='none', edgecolor=adm2_edge_color,
               linewidth=1.2, label='adm2 boundary'),
@@ -178,8 +200,10 @@ def plot_woreda(woreda_name: str,
 
     # ── Save ──────────────────────────────────────────────────────────────
     output_dir.mkdir(parents=True, exist_ok=True)
-    safe = (woreda_name.replace(" ", "_").replace("/", "_")
-                       .replace("'", "").replace("(", "").replace(")", ""))
+    # Join all names with "__" for the filename         ← was: single woreda_name
+    safe = ("__".join(woreda_names)
+            .replace(" ", "_").replace("/", "_")
+            .replace("'", "").replace("(", "").replace(")", ""))
     out_path = output_dir / f"woreda_location_{safe}.png"
     plt.tight_layout()
     #plt.show(block=False)
@@ -196,11 +220,15 @@ def plot_woreda(woreda_name: str,
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Plot adm2/adm3 boundaries and highlight a specified woreda."
+        description="Plot adm2/adm3 boundaries and highlight one or more woredas."
     )
     parser.add_argument(
-        "--woreda", required=True,
-        help="adm3_name of the woreda to highlight (case-sensitive).",
+        "--woreda", required=True, nargs="+",     # ← added nargs="+"
+        help=(
+            "One or more adm3_name values to highlight (case-sensitive). "
+            "Space-separated. Quote names that contain spaces, e.g.: "
+            "--woreda Adaba Goro \"Kore Woreda\""
+        ),
     )
     parser.add_argument(
         "--shapefile_dir", required=True,
@@ -224,7 +252,7 @@ def main() -> None:
     args = parser.parse_args()
 
     plot_woreda(
-        woreda_name   = args.woreda,
+        woreda_names  = args.woreda,              # ← was: woreda_name = args.woreda
         shapefile_dir = Path(args.shapefile_dir),
         output_dir    = Path(args.output_dir),
         adm3_shp      = Path(args.adm3_shp)    if args.adm3_shp    else None,

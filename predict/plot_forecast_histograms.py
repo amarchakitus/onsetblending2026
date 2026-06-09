@@ -132,7 +132,8 @@ def main() -> None:
         description="Plot per-adm3 forecast probability histograms."
     )
     parser.add_argument(
-        "--input_dir", required=True,
+        "--input_dir", required=False,
+        default=None,
         help="Directory containing the weekly_probs .nc file.",
     )
     parser.add_argument(
